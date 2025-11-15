@@ -29,6 +29,8 @@ COPY . .
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+
+# Switch to appuser
 USER appuser
 
 # Expose port
@@ -36,7 +38,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8080/health')"
+    CMD .venv/bin/python -c "import requests; requests.get('http://localhost:8080/health')"
 
-# Run the application using uv
-CMD ["uv", "run", "python", "main.py"] 
+# Run the application directly from the virtual environment
+CMD [".venv/bin/python", "main.py"] 
