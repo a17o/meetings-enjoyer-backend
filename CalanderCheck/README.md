@@ -18,7 +18,7 @@ docker run --rm calendar-check:local
 ```bash
 PROJECT_ID=community-mafia
 REGION=europe-west2  # or preferred region
-IMAGE=europe-west1-docker.pkg.dev/community-mafia/cloud-run-source-deploy/calendar-check:latest
+IMAGE=europe-docker.pkg.dev/thermal-origin-236720/default/calendar-check:latest
 
 cd CalanderCheck
 docker build -t ${IMAGE} .
@@ -53,7 +53,5 @@ docker push ${IMAGE}
 
 
 ## QUICK
-  docker build -t europe-west1-docker.pkg.dev/community-mafia/cloud-run-source-deploy/calendar-check:latest .
-  docker push europe-west1-docker.pkg.dev/community-mafia/cloud-run-source-deploy/calendar-check:latest
   gcloud run jobs replace cloud-run-job.yaml --region europe-west1
   gcloud run jobs execute calendar-check-large --region europe-west1

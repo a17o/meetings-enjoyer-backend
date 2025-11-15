@@ -1,0 +1,7 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker:latest'
+    args: ['build','--network=cloudbuild', '-t', 'europe-docker.pkg.dev/thermal-origin-236720/default/calendar-check-2:latest', '.']
+    dir: '.'
+
+images: ['europe-docker.pkg.dev/thermal-origin-236720/default/calendar-check-2:latest']
+timeout: 3600s

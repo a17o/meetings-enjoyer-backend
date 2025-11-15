@@ -3,7 +3,7 @@ import re
 import datetime
 import os
 import pytz
-
+import urllib.parse
 import requests
 from arcadepy import Arcade
 from dotenv import load_dotenv
@@ -13,9 +13,14 @@ load_dotenv()
 USER_ID = "florisfok5@gmail.com"
 TOOL_NAME = "GoogleCalendar.ListEvents"
 
-def call_backend(link):
-    requests.get(f"https://enabling-chamois-unique.ngrok-free.app/call/{link}")
+def call_backend(description):
+    # url encode the description
+    description = urllib.parse.quote(description)
+    link = extract_meet_link(description)
+
+    requests.get(f"https://enabling-chamois-unique.ngrok-free.app/call/?description={description}")
     print(f"Called backend with link: {link}")
+
 
 def get_now():
     helsinki = pytz.timezone("Europe/Helsinki")
@@ -58,6 +63,7 @@ def parse_datetime(raw_value, label):
 
 def check_events(events, now):
     for event in events:
+        print(json.dumps(event, indent=2))
         link = extract_meet_link(event.get("description"))
         if not link:
             continue
@@ -73,7 +79,8 @@ def check_events(events, now):
             print("Event is happening now")
             print(json.dumps(event, indent=2))
 
-            call_backend(link)
+            call_backend(event.get("description"))
+            break
 
 def main():
     if "ARCADE_API_KEY" not in os.environ:
