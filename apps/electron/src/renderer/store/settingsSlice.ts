@@ -8,7 +8,7 @@ export interface SettingsSlice {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
-  backendUrl: 'ws://localhost:9001',
+  backendUrl: 'ws://localhost:8080/ws',  // Default to API websocket endpoint
   authToken: '',
   agentName: 'Lara',
   wakePhrase: 'hey lara',
@@ -16,7 +16,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   confirmBeforeSpeaking: true,
   autoRaiseHandHint: true,
   logToFile: true,
-  mockMode: true,
+  mockMode: false,  // Default to API mode
+  callId: '1234',  // Default call_id
 }
 
 export const createSettingsSlice: StateCreator<SettingsSlice> = (set) => ({
@@ -39,6 +40,7 @@ export const createSettingsSlice: StateCreator<SettingsSlice> = (set) => ({
         autoRaiseHandHint: newSettings.autoRaiseHandHint,
         logToFile: newSettings.logToFile,
         mockMode: newSettings.mockMode,
+        callId: newSettings.callId || '',
       })
 
       return { settings: newSettings }

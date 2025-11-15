@@ -14,10 +14,11 @@ export interface SourceRef {
 }
 
 export interface MeetingInfo {
-  label: string
-  dialIn: string
+  label?: string
+  dialIn?: string
   dtmf?: string
   displayName?: string
+  rawInvite?: string  // Raw Google Calendar invite text
 }
 
 // Server → Client Events

@@ -15,7 +15,6 @@ function App() {
   const settings = useStore((s) => s.settings)
   const toggleCollapsed = useStore((s) => s.toggleCollapsed)
   const setSettingsOpen = useStore((s) => s.setSettingsOpen)
-  const currentAnswer = useStore((s) => s.current)
   const filter = useStore((s) => s.filter)
   const setFilter = useStore((s) => s.setFilter)
   const checkStaleAnswers = useStore((s) => s.checkStaleAnswers)
@@ -41,12 +40,13 @@ function App() {
     // Connect to backend
     const url = settings.backendUrl
     const token = settings.authToken || undefined
-    client.connect(url, token)
+    const callId = settings.callId || undefined
+    client.connect(url, token, callId)
 
     return () => {
       client.disconnect()
     }
-  }, [settings.backendUrl, settings.authToken])
+  }, [settings.backendUrl, settings.authToken, settings.callId])
 
   // Listen for global toggle collapse event from main process
   useEffect(() => {
@@ -70,24 +70,9 @@ function App() {
 
   // Keyboard shortcuts (only when expanded)
   useKeyboard({
-    forceCommand: () => {
-      if (!collapsed && wsClientRef.current) {
-        wsClientRef.current.forceCommandNext()
-      }
-    },
-    approveSpeak: () => {
-      if (!collapsed && currentAnswer && currentAnswer.status === 'ready' && wsClientRef.current) {
-        wsClientRef.current.approveSpeak(currentAnswer.answerId)
-      }
-    },
-    reject: () => {
+    collapse: () => {
       if (!collapsed) {
-        if (currentAnswer && wsClientRef.current) {
-          wsClientRef.current.rejectAnswer(currentAnswer.answerId)
-        } else {
-          // If no answer, collapse the drawer
-          toggleCollapsed()
-        }
+        toggleCollapsed()
       }
     },
     settings: () => {

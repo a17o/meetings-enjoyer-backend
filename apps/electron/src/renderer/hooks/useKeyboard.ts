@@ -12,16 +12,10 @@ export function useKeyboard(handlers: Record<string, () => void>) {
         handlers.forceCommand?.()
       }
 
-      // Cmd/Ctrl + Enter: Approve Speak
-      if (modKey && e.key === 'Enter') {
-        e.preventDefault()
-        handlers.approveSpeak?.()
-      }
-
-      // Escape: Reject / Collapse
+      // Escape: Collapse
       if (e.key === 'Escape') {
         e.preventDefault()
-        handlers.reject?.()
+        handlers.collapse?.()
       }
 
       // Cmd/Ctrl + ,: Settings

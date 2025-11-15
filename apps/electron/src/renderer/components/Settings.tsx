@@ -72,6 +72,18 @@ export function SettingsModal() {
             />
           </div>
 
+          {/* Call ID (for API mode) */}
+          <div>
+            <label className="block text-xs font-medium text-white/60 mb-1">Call ID (required for API mode)</label>
+            <input
+              type="text"
+              value={formData.callId || ''}
+              onChange={(e) => setFormData({ ...formData, callId: e.target.value })}
+              placeholder="Enter call_id to receive questions/answers"
+              className="input w-full"
+            />
+          </div>
+
           {/* Agent Name */}
           <div>
             <label className="block text-xs font-medium text-white/60 mb-1">Agent Name</label>

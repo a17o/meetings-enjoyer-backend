@@ -35,6 +35,8 @@ export interface Answer {
   }
   status: AnswerStatus
   expiresAt?: number // timestamp when answer becomes stale (90s from ts)
+  taskId?: string  // Link to task
+  questionId?: string  // Link to question
 }
 
 export interface Task {
@@ -43,6 +45,7 @@ export interface Task {
   summary: string
   payload: any
   status: TaskStatus
+  answerId?: string  // Link to answer when ready
 }
 
 export interface AppSettings {
@@ -55,6 +58,7 @@ export interface AppSettings {
   autoRaiseHandHint: boolean
   logToFile: boolean
   mockMode: boolean
+  callId?: string  // For API websocket connection
 }
 
 export interface OverlayState {

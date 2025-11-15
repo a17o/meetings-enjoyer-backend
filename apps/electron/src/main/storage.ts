@@ -16,6 +16,7 @@ export interface StoredConfig {
   autoRaiseHandHint?: boolean
   logToFile?: boolean
   mockMode?: boolean
+  callId?: string
 }
 
 export interface StoredOverlay {
@@ -46,7 +47,7 @@ export async function loadConfig(): Promise<StoredConfig> {
   } catch (error) {
     // Return defaults if file doesn't exist
     return {
-      backendUrl: 'ws://localhost:9001',
+      backendUrl: 'ws://localhost:8080/ws',
       authToken: '',
       agentName: 'Lara',
       wakePhrase: 'hey lara',
@@ -54,7 +55,8 @@ export async function loadConfig(): Promise<StoredConfig> {
       confirmBeforeSpeaking: true,
       autoRaiseHandHint: true,
       logToFile: true,
-      mockMode: true,
+      mockMode: false,
+      callId: '1234',
     }
   }
 }

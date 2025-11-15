@@ -19,15 +19,12 @@ export function ExpandedDrawer({ wsClient, onChatToggle }: ExpandedDrawerProps) 
   const toggleTranscript = useStore((s) => s.toggleTranscript)
 
   const isSpeaking = agentStatus === 'speaking'
+  const moveAnswerToHistory = useStore((s) => s.moveAnswerToHistory)
 
-  const handleApprove = () => {
-    if (!wsClient || !currentAnswer) return
-    wsClient.approveSpeak(currentAnswer.answerId)
-  }
-
-  const handleReject = () => {
-    if (!wsClient || !currentAnswer) return
-    wsClient.rejectAnswer(currentAnswer.answerId)
+  const handleDismiss = () => {
+    if (!currentAnswer) return
+    // Move to history to remove from notifications
+    moveAnswerToHistory(currentAnswer.answerId)
   }
 
   const handleCancel = () => {
@@ -51,16 +48,6 @@ export function ExpandedDrawer({ wsClient, onChatToggle }: ExpandedDrawerProps) 
 
         {/* Right: Controls & Queue - Always visible */}
         <div className={`${transcriptCollapsed ? 'w-full' : 'w-[45%]'} flex flex-col overflow-y-auto transition-all duration-200 relative`}>
-          {/* Toggle button - top right of controls panel */}
-          <button
-            onClick={toggleTranscript}
-            className="absolute right-3 top-3 bg-white/10 hover:bg-white/20 rounded-full p-2 transition-all z-20"
-            title={transcriptCollapsed ? 'Show transcript' : 'Hide transcript'}
-          >
-            <svg className={`w-4 h-4 text-white transition-transform ${transcriptCollapsed ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
           {/* Controls */}
           <Controls wsClient={wsClient} />
 
@@ -69,8 +56,7 @@ export function ExpandedDrawer({ wsClient, onChatToggle }: ExpandedDrawerProps) 
             <div className="p-3 border-b border-white/10">
               <AnswerCard
                 answer={currentAnswer}
-                onApprove={handleApprove}
-                onReject={handleReject}
+                onDismiss={handleDismiss}
                 onCancel={handleCancel}
                 isSpeaking={isSpeaking}
               />
@@ -97,20 +83,21 @@ export function ExpandedDrawer({ wsClient, onChatToggle }: ExpandedDrawerProps) 
           {/* Tasks Queue */}
           <TasksQueue wsClient={wsClient} />
 
-          {/* Raise hand hint */}
-          {useStore((s) => s.settings.autoRaiseHandHint) && currentAnswer && currentAnswer.status === 'ready' && (
-            <div className="p-3">
-              <div className="glass-darker rounded p-3 flex items-center gap-3 border border-yellow-500/20">
-                <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" />
-                </svg>
-                <div className="flex-1">
-                  <p className="text-sm text-white font-medium">Ready to speak</p>
-                  <p className="text-xs text-white/60">Remember to allow the agent to unmute</p>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Toggle button - bottom of controls panel */}
+          <div className="sticky bottom-0 p-3 border-t border-white/10 bg-glass">
+            <button
+              onClick={toggleTranscript}
+              className="w-full bg-white/10 hover:bg-white/20 rounded-lg p-2 transition-all flex items-center justify-center gap-2"
+              title={transcriptCollapsed ? 'Show transcript' : 'Hide transcript'}
+            >
+              <svg className={`w-4 h-4 text-white transition-transform ${transcriptCollapsed ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="text-xs text-white/80">
+                {transcriptCollapsed ? 'Show Transcript' : 'Hide Transcript'}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

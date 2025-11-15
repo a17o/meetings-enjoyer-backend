@@ -6,6 +6,7 @@ export interface TasksSlice extends TasksState {
   updateTaskStatus: (taskId: string, status: TaskStatus, detail?: string) => void
   removeTask: (taskId: string) => void
   clearCompletedTasks: () => void
+  linkAnswerToTask: (taskId: string, answerId: string) => void
 }
 
 export const createTasksSlice: StateCreator<TasksSlice> = (set) => ({
@@ -47,6 +48,14 @@ export const createTasksSlice: StateCreator<TasksSlice> = (set) => ({
   clearCompletedTasks: () => {
     set((state) => ({
       tasks: state.tasks.filter((task) => task.status !== 'success' && task.status !== 'failure'),
+    }))
+  },
+
+  linkAnswerToTask: (taskId, answerId) => {
+    set((state) => ({
+      tasks: state.tasks.map((task) =>
+        task.taskId === taskId ? { ...task, answerId, status: 'success' as TaskStatus } : task
+      ),
     }))
   },
 })

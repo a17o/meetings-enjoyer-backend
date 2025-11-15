@@ -12,7 +12,7 @@ export class WSClient {
     this.store = store
   }
 
-  connect(url: string, token?: string): void {
+  connect(url: string, token?: string, callId?: string): void {
     if (this.ws) {
       this.disconnect()
     }
@@ -20,12 +20,17 @@ export class WSClient {
     this.store.setConnectionStatus('connecting')
     this.log('info', `Connecting to ${url}`)
 
-    // Build URL with query params
+    // Check if this is an API websocket (not mock)
+    const isApiMode = !this.store.settings.mockMode || url.includes('/ws')
+
+    // Build URL with query params (only for mock mode)
     const wsUrl = new URL(url)
-    if (token) {
-      wsUrl.searchParams.set('token', token)
+    if (!isApiMode) {
+      if (token) {
+        wsUrl.searchParams.set('token', token)
+      }
+      wsUrl.searchParams.set('client', 'LaraConsole')
     }
-    wsUrl.searchParams.set('client', 'LaraConsole')
 
     this.ws = new ReconnectingWebSocket(wsUrl.toString(), [], {
       maxReconnectionDelay: 5000,
@@ -34,6 +39,10 @@ export class WSClient {
       connectionTimeout: 4000,
       maxRetries: Infinity,
     })
+
+    // Store connection mode and callId for use in handleOpen
+    ;(this.ws as any)._isApiMode = isApiMode
+    ;(this.ws as any)._callId = callId || this.store.settings.callId
 
     this.ws.addEventListener('open', this.handleOpen.bind(this))
     this.ws.addEventListener('message', this.handleMessage.bind(this))
@@ -61,12 +70,33 @@ export class WSClient {
     this.store.setConnectionStatus('connected')
     this.store.resetReconnectCount()
 
-    // Send hello message
-    this.send({
-      type: 'hello',
-      clientVersion: '0.1.0', // TODO: get from package.json
-      supports: ['transcript', 'answer', 'task', 'call'],
-    })
+    const isApiMode = (this.ws as any)?._isApiMode
+    const callId = (this.ws as any)?._callId
+
+    if (isApiMode) {
+      // API mode: send call_id as first message
+      if (callId) {
+        this.log('info', `Sending call_id: ${callId}`)
+        this.ws?.send(JSON.stringify({ call_id: callId }))
+      } else {
+        // Try to get call_id from settings
+        const settingsCallId = this.store.settings.callId
+        if (settingsCallId) {
+          this.log('info', `Sending call_id from settings: ${settingsCallId}`)
+          this.ws?.send(JSON.stringify({ call_id: settingsCallId }))
+        } else {
+          this.log('warn', 'No call_id provided for API connection')
+          this.store.addToast('warning', 'No call_id set. Please set call_id in settings.')
+        }
+      }
+    } else {
+      // Mock mode: send hello message
+      this.send({
+        type: 'hello',
+        clientVersion: '0.1.0', // TODO: get from package.json
+        supports: ['transcript', 'answer', 'task', 'call'],
+      })
+    }
 
     // Start ping interval
     this.startPingInterval()
@@ -76,8 +106,43 @@ export class WSClient {
 
   private handleMessage(event: MessageEvent): void {
     try {
-      const message: ServerEvent = JSON.parse(event.data)
-      this.processServerEvent(message)
+      const message = JSON.parse(event.data)
+      
+      // Handle API connection confirmation message
+      if (message.status === 'connected' && message.call_id) {
+        this.log('info', `API connection confirmed for call_id: ${message.call_id}`)
+        // Update settings with the confirmed call_id
+        this.store.updateSettings({ callId: message.call_id })
+        return
+      }
+
+      // Handle API echo messages (ignore them)
+      if (message.echo) {
+        this.log('debug', 'Received echo message, ignoring')
+        return
+      }
+
+      // Handle API error messages
+      if (message.error) {
+        this.log('error', `API error: ${message.error}`)
+        this.store.addToast('error', message.error)
+        return
+      }
+
+      // Process as ServerEvent
+      // Log the message type for debugging
+      if (message.type) {
+        this.log('debug', `Processing message type: ${message.type}`, message)
+      }
+      
+      const serverEvent = message as ServerEvent
+      
+      // Check if it's a task_proposed event and log it
+      if (message.type === 'task_proposed') {
+        this.log('info', 'Received task_proposed message', message)
+      }
+      
+      this.processServerEvent(serverEvent)
     } catch (error) {
       this.log('error', 'Failed to parse message', error)
     }
@@ -102,6 +167,11 @@ export class WSClient {
 
   private processServerEvent(event: ServerEvent): void {
     this.log('debug', `Received event: ${event.type}`, event)
+    
+    // Log task_proposed events specifically for debugging
+    if ((event as any).type === 'task_proposed') {
+      this.log('info', 'Processing task_proposed event', event)
+    }
 
     switch (event.type) {
       case 'session_info':
@@ -140,15 +210,24 @@ export class WSClient {
         break
 
       case 'answer_ready':
-        this.store.addAnswer({
+        const answer = {
           answerId: event.answerId,
           commandId: event.commandId,
           ts: event.ts,
           text: event.text,
           sources: event.sources,
           metrics: event.metrics,
-          status: 'ready',
-        })
+          status: 'ready' as const,
+          taskId: (event as any).taskId,  // Link to task
+          questionId: (event as any).question_id,  // Link to question
+        }
+        this.store.addAnswer(answer)
+        
+        // Link answer to task if taskId is provided
+        if ((event as any).taskId) {
+          this.store.linkAnswerToTask((event as any).taskId, event.answerId)
+        }
+        
         this.store.addToast('success', 'Answer ready!')
         break
 
@@ -169,14 +248,15 @@ export class WSClient {
         break
 
       case 'task_proposed':
+        // Auto-approve tasks (set to running instead of queued)
         this.store.addTask({
           taskId: event.taskId,
           ts: event.ts,
           summary: event.summary,
           payload: event.payload,
-          status: 'queued',
+          status: 'running',  // Auto-approve, no need for manual approval
         })
-        this.store.addToast('info', `New task: ${event.summary}`)
+        this.store.addToast('info', `New question: ${event.summary}`)
         break
 
       case 'task_status':

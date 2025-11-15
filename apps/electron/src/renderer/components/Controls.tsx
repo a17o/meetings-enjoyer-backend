@@ -14,17 +14,6 @@ export function Controls({ wsClient }: ControlsProps) {
 
   const isConnected = connectionStatus === 'connected'
   const isSpeaking = agentStatus === 'speaking'
-  const hasAnswer = currentAnswer !== null && currentAnswer.status === 'ready'
-
-  const handleForceCommand = () => {
-    if (!wsClient) return
-    wsClient.forceCommandNext()
-  }
-
-  const handleApproveSpeak = () => {
-    if (!wsClient || !currentAnswer) return
-    wsClient.approveSpeak(currentAnswer.answerId)
-  }
 
   const handlePanicStop = () => {
     if (!wsClient || !currentAnswer) return
@@ -33,45 +22,19 @@ export function Controls({ wsClient }: ControlsProps) {
 
   return (
     <div className="p-3 space-y-2 border-b border-white/10">
-      {/* Primary controls */}
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          onClick={handleForceCommand}
-          disabled={!isConnected || isSpeaking}
-          className="btn-secondary text-sm"
-          title="Force Command (⌘K)"
-        >
-          <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      {/* Panic Stop (only when speaking) */}
+      {isSpeaking && (
+        <button onClick={handlePanicStop} className="btn-danger w-full text-sm">
+          <svg className="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              fillRule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
+              clipRule="evenodd"
+            />
           </svg>
-          Force Command
+          Panic Stop
         </button>
-
-        {isSpeaking ? (
-          <button onClick={handlePanicStop} className="btn-danger text-sm">
-            <svg className="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
-                clipRule="evenodd"
-              />
-            </svg>
-            Panic Stop
-          </button>
-        ) : (
-          <button
-            onClick={handleApproveSpeak}
-            disabled={!hasAnswer}
-            className="btn-primary text-sm"
-            title="Approve to Speak (⌘↵)"
-          >
-            <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            Approve Speak
-          </button>
-        )}
-      </div>
+      )}
 
       {/* Call controls */}
       {!callStatus || callStatus === 'ended' || callStatus === 'failed' ? (

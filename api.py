@@ -155,8 +155,18 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             try:
                 data = await websocket.receive_text()
-                # Echo back any messages (optional, for ping/pong or other messages)
-                await websocket.send_text(json.dumps({"echo": data}))
+                try:
+                    message = json.loads(data)
+                    if message.get("type") == "ping":
+                        await websocket.send_text(json.dumps({
+                            "type": "pong",
+                            "ts": message.get("ts"),
+                            "serverTs": int(time.time() * 1000)
+                        }))
+                    else:
+                        await websocket.send_text(json.dumps({"echo": data}))
+                except json.JSONDecodeError:
+                    await websocket.send_text(json.dumps({"echo": data}))
             except WebSocketDisconnect:
                 break
                 
@@ -367,6 +377,32 @@ async def create_question(request: QuestionRequest):
 
         logger.info(f"Question created with id: {question_id}")
 
+        # Send question to websocket if connected
+        if request.call_id in websocket_connections:
+            try:
+                websocket = websocket_connections[request.call_id]
+                # Send question as a task_proposed event so it appears in the UI
+                task_id = f"task_{question_id}"
+                task_message = {
+                    "type": "task_proposed",
+                    "taskId": task_id,
+                    "ts": int(time.time() * 1000),  # milliseconds timestamp
+                    "summary": request.question,
+                    "payload": {
+                        "question_id": str(question_id),
+                        "call_id": request.call_id,
+                        "question": request.question
+                    }
+                }
+                message_json = json.dumps(task_message)
+                logger.info(f"Sending task_proposed message to websocket for call_id: {request.call_id}, message: {message_json}")
+                await websocket.send_text(message_json)
+                logger.info(f"Successfully sent question as task to websocket for call_id: {request.call_id}")
+            except Exception as e:
+                logger.error(f"Failed to send question to websocket: {str(e)}", exc_info=True)
+        else:
+            logger.warning(f"No websocket connection found for call_id: {request.call_id}. Available connections: {list(websocket_connections.keys())}")
+
         # Send to V7 for processing
         v7_answer = None
         try:
@@ -455,12 +491,21 @@ async def create_question(request: QuestionRequest):
                                 if request.call_id in websocket_connections:
                                     try:
                                         websocket = websocket_connections[request.call_id]
+                                        # Send in answer_ready format expected by electron app
+                                        answer_id = f"ans_{question_id}"
+                                        command_id = f"cmd_{question_id}"
+                                        task_id = f"task_{question_id}"  # Link to the task
                                         await websocket.send_text(json.dumps({
-                                            "call_id": request.call_id,
-                                            "answer": v7_answer,
-                                            "question_text": request.question
+                                            "type": "answer_ready",
+                                            "answerId": answer_id,
+                                            "commandId": command_id,
+                                            "ts": int(time.time() * 1000),  # milliseconds timestamp
+                                            "text": v7_answer,
+                                            "question_text": request.question,  # Keep for reference
+                                            "question_id": str(question_id),
+                                            "taskId": task_id  # Link answer to task
                                         }))
-                                        logger.info(f"Sent answer to websocket for call_id: {request.call_id}")
+                                        logger.info(f"Sent answer to websocket for call_id: {request.call_id}, linked to task: {task_id}")
                                     except Exception as e:
                                         logger.error(f"Failed to send answer to websocket: {str(e)}")
 
@@ -519,12 +564,31 @@ async def create_insight(request: InsightRequest):
 
         # Insert into MongoDB
         result = await db.insights.insert_one(insight_document)
+        insight_id = result.inserted_id
 
-        logger.info(f"Insight created with id: {result.inserted_id}")
+        logger.info(f"Insight created with id: {insight_id}")
+
+        # Send insight to websocket if connected (as transcript message)
+        if request.call_id in websocket_connections:
+            try:
+                websocket = websocket_connections[request.call_id]
+                # Send insight as a transcript message so it appears in the transcript window
+                await websocket.send_text(json.dumps({
+                    "type": "transcript",
+                    "id": f"insight_{insight_id}",
+                    "ts": int(time.time() * 1000),  # milliseconds timestamp
+                    "text": request.insight,
+                    "partial": False,
+                    "speaker": "Insight",  # Label as insight so it's distinguishable
+                    "wake": False
+                }))
+                logger.info(f"Sent insight to websocket for call_id: {request.call_id}")
+            except Exception as e:
+                logger.error(f"Failed to send insight to websocket: {str(e)}")
 
         return DataResponse(
             success=True,
-            id=str(result.inserted_id),
+            id=str(insight_id),
             message="Insight created successfully",
             timestamp=datetime.now().isoformat()
         )
