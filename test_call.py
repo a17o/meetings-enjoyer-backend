@@ -1,11 +1,14 @@
 """
-Test script to make an actual ElevenLabs phone call with meeting credentials.
+Test script to parse meeting info and make an ElevenLabs phone call.
 
 Usage:
-    python test_call.py <phone_number> <meeting_credentials>
+    python test_call.py <meeting_blurb_file>
 
 Example:
-    python test_call.py +1234567890 "Meeting ID: 123-456-789, Passcode: 9876"
+    python test_call.py meeting.txt
+
+Or provide meeting info directly as second argument:
+    python test_call.py parse "Meeting info here..."
 """
 
 import sys
@@ -13,18 +16,41 @@ import json
 import os
 from dotenv import load_dotenv
 from elevenlabs import call_elevenlabs
+from parse_meeting_info import parse_meeting_info
 
 # Load environment variables
 load_dotenv()
 
-def test_call(phone_number: str, meeting_credentials: str = ""):
+def test_call_with_parsing(meeting_blurb: str):
     """
-    Make an actual call using the ElevenLabs API.
+    Parse meeting info and make a call.
 
     Args:
-        phone_number: Phone number to call (e.g., +1234567890)
-        meeting_credentials: Meeting details like ID and passcode
+        meeting_blurb: Raw meeting information text
     """
+    print(f"\n{'='*60}")
+    print("Parsing Meeting Information with Gemini")
+    print(f"{'='*60}\n")
+
+    # Parse meeting info
+    print("🤖 Calling Gemini API to parse meeting info...")
+    parse_result = parse_meeting_info(meeting_blurb)
+
+    if not parse_result.get("success"):
+        print(f"\n❌ Failed to parse meeting info!")
+        print(f"Error: {parse_result.get('error')}")
+        return
+
+    phone_number = parse_result.get("phone_number")
+    meeting_credentials = parse_result.get("meeting_credentials")
+
+    print(f"\n✅ Successfully parsed meeting info!")
+    print(f"\nExtracted Information:")
+    print("-" * 60)
+    print(f"Phone Number: {phone_number}")
+    print(f"Meeting Credentials: {meeting_credentials}")
+    print("-" * 60)
+
     print(f"\n{'='*60}")
     print("Making ElevenLabs Call")
     print(f"{'='*60}")
@@ -65,12 +91,37 @@ def test_call(phone_number: str, meeting_credentials: str = ""):
 
     print(f"\n{'='*60}\n")
 
+
 if __name__ == "__main__":
-    # Default values for testing
-    DEFAULT_PHONE = "+442039563891"#"+442034815237"
-    DEFAULT_CREDENTIALS = """PIN: 485 709 205#"""#"Meeting ID: 943 0401 4125 Passcode: 810119"
+    # Default meeting blurb for testing
+    DEFAULT_MEETING_BLURB = """Join Zoom Meeting
+https://prosus.zoom.us/j/94304014125?pwd=YBQlFRAFGYJfVOOBTAF7lwAevaaukK.1
 
-    phone = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PHONE
-    credentials = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_CREDENTIALS
+Meeting ID:  943 0401 4125
+Passcode: 810119
 
-    test_call(phone, credentials)
+Dial by your location
+• +44 203 956 3891 United Kingdom
+• +44 208 080 6592 United Kingdom
+
+Meeting ID:  943 0401 4125
+Passcode: 810119"""
+
+    if len(sys.argv) > 1:
+        # Check if first argument is a file path
+        arg = sys.argv[1]
+        if os.path.isfile(arg):
+            # Read meeting info from file
+            with open(arg, 'r') as f:
+                meeting_blurb = f.read()
+        elif arg == "parse" and len(sys.argv) > 2:
+            # Use second argument as meeting blurb
+            meeting_blurb = sys.argv[2]
+        else:
+            # Use argument as meeting blurb directly
+            meeting_blurb = arg
+    else:
+        # Use default
+        meeting_blurb = DEFAULT_MEETING_BLURB
+
+    test_call_with_parsing(meeting_blurb)
