@@ -1,11 +1,12 @@
-from fastapi import FastAPI, HTTPException, WebSocket
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict
 import os
 from datetime import datetime
 import logging
 import requests
 import time
+import json
 from dotenv import load_dotenv
 
 from elevenlabs import call_elevenlabs
@@ -16,6 +17,9 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Store websocket connections by call_id
+websocket_connections: Dict[str, WebSocket] = {}
 
 app = FastAPI(
     title="Meeting Enjoyer API",
@@ -60,9 +64,47 @@ async def root():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    while True:
+    call_id = None
+    
+    try:
+        # Wait for call_id as the first message
         data = await websocket.receive_text()
-        await websocket.send_text(f"Echo: {data}")
+        try:
+            message = json.loads(data)
+            call_id = message.get("call_id")
+        except json.JSONDecodeError:
+            # If not JSON, treat the whole message as call_id
+            call_id = data.strip()
+        
+        if not call_id:
+            await websocket.send_text(json.dumps({"error": "call_id is required"}))
+            await websocket.close()
+            return
+        
+        # Store the websocket connection with this call_id
+        websocket_connections[call_id] = websocket
+        logger.info(f"WebSocket connected for call_id: {call_id}")
+        
+        await websocket.send_text(json.dumps({"status": "connected", "call_id": call_id}))
+        
+        # Keep connection alive and listen for messages
+        while True:
+            try:
+                data = await websocket.receive_text()
+                # Echo back any messages (optional, for ping/pong or other messages)
+                await websocket.send_text(json.dumps({"echo": data}))
+            except WebSocketDisconnect:
+                break
+                
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for call_id: {call_id}")
+    except Exception as e:
+        logger.error(f"WebSocket error: {str(e)}")
+    finally:
+        # Clean up the connection
+        if call_id and call_id in websocket_connections:
+            del websocket_connections[call_id]
+            logger.info(f"Removed websocket connection for call_id: {call_id}")
 
 
 @app.get("/health")
@@ -155,7 +197,7 @@ async def make_call(request: CallRequest):
 @app.post("/process/question")
 async def process_question(request: V7EntityRequest):
     """
-    Create a V7 entity and poll for the answer.
+    Create a V7 question entity and poll for the answer.
     
     Args:
         request: V7EntityRequest containing call_id and question_text
@@ -253,7 +295,7 @@ async def process_question(request: V7EntityRequest):
             # Check if answer is complete
             if answer_status == 'complete':
                 logger.info("Answer is ready, extracting answer value")
-                # Extract only the answer value from tool_value
+
                 tool_value = answer_field.get('tool_value', {})
                 answer_value = tool_value.get('value')
                 
@@ -263,9 +305,20 @@ async def process_question(request: V7EntityRequest):
                         detail="Answer is complete but value is not available"
                     )
                 
+                if request.call_id in websocket_connections:
+                    try:
+                        websocket = websocket_connections[request.call_id]
+                        await websocket.send_text(json.dumps({
+                            "call_id": request.call_id,
+                            "answer": answer_value,
+                            "question_text": request.question_text
+                        }))
+                        logger.info(f"Sent answer to websocket for call_id: {request.call_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to send answer to websocket: {str(e)}")
+                
                 return {"answer": answer_value}
             
-            # If there's an error in the answer field
             if answer_field.get('error_message'):
                 error_msg = answer_field.get('error_message')
                 logger.error(f"Answer field has error: {error_msg}")
