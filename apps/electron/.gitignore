@@ -6,6 +6,7 @@ dist/
 dist-electron/
 out/
 build/
+!build/icon.icns
 
 # Development
 .vite/
@@ -66,3 +67,4 @@ coverage/
 userData/
 config.json
 overlay.json
+icon.iconset/
