@@ -7,7 +7,7 @@ interface TasksQueueProps {
 }
 
 export function TasksQueue({ wsClient }: TasksQueueProps) {
-  const tasks = useStore((s) => s.queue)
+  const tasks = useStore((s) => s.tasks)
 
   if (tasks.length === 0) {
     return null

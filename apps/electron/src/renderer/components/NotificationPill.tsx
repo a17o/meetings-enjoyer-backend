@@ -8,7 +8,7 @@ interface NotificationPillProps {
 
 export function NotificationPill({ wsClient, onClose }: NotificationPillProps) {
   const currentAnswer = useStore((s) => s.current)
-  const tasksQueue = useStore((s) => s.queue)
+  const tasks = useStore((s) => s.tasks)
 
   const handleApprove = () => {
     if (!wsClient || !currentAnswer) return
@@ -22,7 +22,7 @@ export function NotificationPill({ wsClient, onClose }: NotificationPillProps) {
     onClose()
   }
 
-  const pendingTasks = tasksQueue.filter((t) => t.status === 'queued')
+  const pendingTasks = tasks.filter((t) => t.status === 'queued')
 
   return (
     <div className="glass-pill p-4 w-[320px] max-h-[316px] overflow-y-auto rounded-2xl">

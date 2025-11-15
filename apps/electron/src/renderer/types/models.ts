@@ -104,5 +104,5 @@ export interface AnswersState {
 }
 
 export interface TasksState {
-  queue: Task[]
+  tasks: Task[]
 }

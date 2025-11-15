@@ -96,8 +96,8 @@ export class WSClient {
     this.store.addToast('warning', 'Connection lost, reconnecting...')
   }
 
-  private handleError(event: Event): void {
-    this.log('error', 'WebSocket error', event)
+  private handleError(): void {
+    this.log('error', 'WebSocket error occurred')
   }
 
   private processServerEvent(event: ServerEvent): void {

@@ -9,7 +9,7 @@ interface CollapsedPillProps {
 export function CollapsedPill({ onExpand, onChatToggle, onNotificationToggle }: CollapsedPillProps) {
   const connectionStatus = useStore((s) => s.connectionStatus)
   const currentAnswer = useStore((s) => s.current)
-  const tasksQueue = useStore((s) => s.queue)
+  const tasks = useStore((s) => s.tasks)
 
   const statusColor = connectionStatus === 'connected'
     ? 'bg-green-500'
@@ -19,7 +19,7 @@ export function CollapsedPill({ onExpand, onChatToggle, onNotificationToggle }: 
 
   // Count notifications
   const notificationCount = (currentAnswer && currentAnswer.status === 'ready' ? 1 : 0) +
-                           tasksQueue.filter((t) => t.status === 'queued').length
+                           tasks.filter((t) => t.status === 'queued').length
 
   return (
     <div className="glass-pill px-4 py-3 flex items-center gap-3">

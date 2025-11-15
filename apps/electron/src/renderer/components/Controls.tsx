@@ -26,11 +26,6 @@ export function Controls({ wsClient }: ControlsProps) {
     wsClient.approveSpeak(currentAnswer.answerId)
   }
 
-  const handleReject = () => {
-    if (!wsClient || !currentAnswer) return
-    wsClient.rejectAnswer(currentAnswer.answerId)
-  }
-
   const handlePanicStop = () => {
     if (!wsClient || !currentAnswer) return
     wsClient.cancelSpeech(currentAnswer.answerId)

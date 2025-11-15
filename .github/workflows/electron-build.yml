@@ -1,0 +1,73 @@
+name: Build Electron App
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/electron/**'
+      - '.github/workflows/electron-build.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/electron/**'
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/electron/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/electron
+        run: npm ci
+
+      - name: Build app
+        working-directory: apps/electron
+        run: npm run build
+
+      - name: Upload artifacts (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lara-console-mac-arm64
+          path: apps/electron/dist/*.dmg
+
+      - name: Upload artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lara-console-windows
+          path: apps/electron/dist/*.exe
+
+      - name: Upload artifacts (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lara-console-linux
+          path: apps/electron/dist/*.AppImage
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            apps/electron/dist/*.dmg
+            apps/electron/dist/*.exe
+            apps/electron/dist/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

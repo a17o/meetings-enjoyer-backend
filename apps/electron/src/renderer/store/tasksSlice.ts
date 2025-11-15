@@ -10,18 +10,18 @@ export interface TasksSlice extends TasksState {
 
 export const createTasksSlice: StateCreator<TasksSlice> = (set) => ({
   // Initial state
-  queue: [],
+  tasks: [],
 
   // Actions
   addTask: (task) => {
     set((state) => ({
-      queue: [...state.queue, task],
+      tasks: [...state.tasks, task],
     }))
   },
 
   updateTaskStatus: (taskId, status, detail) => {
     set((state) => ({
-      queue: state.queue.map((task) =>
+      tasks: state.tasks.map((task) =>
         task.taskId === taskId
           ? { ...task, status, ...(detail && { payload: { ...task.payload, detail } }) }
           : task
@@ -32,7 +32,7 @@ export const createTasksSlice: StateCreator<TasksSlice> = (set) => ({
     if (status === 'success' || status === 'failure') {
       setTimeout(() => {
         set((state) => ({
-          queue: state.queue.filter((task) => task.taskId !== taskId),
+          tasks: state.tasks.filter((task) => task.taskId !== taskId),
         }))
       }, 5000)
     }
@@ -40,13 +40,13 @@ export const createTasksSlice: StateCreator<TasksSlice> = (set) => ({
 
   removeTask: (taskId) => {
     set((state) => ({
-      queue: state.queue.filter((task) => task.taskId !== taskId),
+      tasks: state.tasks.filter((task) => task.taskId !== taskId),
     }))
   },
 
   clearCompletedTasks: () => {
     set((state) => ({
-      queue: state.queue.filter((task) => task.status !== 'success' && task.status !== 'failure'),
+      tasks: state.tasks.filter((task) => task.status !== 'success' && task.status !== 'failure'),
     }))
   },
 })

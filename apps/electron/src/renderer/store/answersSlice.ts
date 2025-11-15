@@ -124,8 +124,9 @@ export const createAnswersSlice: StateCreator<AnswersSlice> = (set, get) => ({
 
       // Check queue
       for (let i = 0; i < newQueue.length; i++) {
-        if (newQueue[i].expiresAt && now > newQueue[i].expiresAt && newQueue[i].status === 'ready') {
-          newQueue[i] = { ...newQueue[i], status: 'stale' }
+        const item = newQueue[i]
+        if (item?.expiresAt && now > item.expiresAt && item.status === 'ready') {
+          newQueue[i] = { ...item, status: 'stale' }
           updated = true
         }
       }
