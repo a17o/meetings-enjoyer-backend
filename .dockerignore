@@ -25,6 +25,7 @@ MANIFEST
 
 # Virtual environments
 venv/
+.venv/
 env/
 ENV/
 env.bak/
@@ -50,9 +51,9 @@ Thumbs.db
 .git/
 .gitignore
 
-# Documentation
-README.md
+# Documentation (exclude all markdown except README.md which is needed by pyproject.toml)
 *.md
+!README.md
 
 # Configuration examples
 *.example
