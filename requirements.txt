@@ -1,7 +1,0 @@
-requests
-python-dotenv
-pydantic
-fastapi
-uvicorn
-elevenlabs
-websockets
