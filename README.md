@@ -7,8 +7,10 @@ A FastAPI backend service for managing meeting insights, tasks, and questions th
 - **MongoDB Integration**: Store and retrieve meeting data in a Vikings database
 - **Three Data Collection Endpoints**:
   - `/tasks` - Store action items from meetings
-  - `/questions` - Store questions asked during meetings
+  - `/questions` - Store questions and get AI-generated answers via V7 integration
   - `/insights` - Store insights discovered during meetings
+- **V7 Integration**: Automatic question processing with AI-generated answers
+- **WebSocket Support**: Real-time answer delivery to connected clients
 - **ElevenLabs Integration**: Make outbound calls with AI agents
 - **Health Checks**: Built-in health monitoring endpoints
 
@@ -31,6 +33,27 @@ A FastAPI backend service for managing meeting insights, tasks, and questions th
   }
   ```
 
+### WebSocket
+
+- **WS /ws** - WebSocket endpoint for real-time answer delivery
+
+  Connect to receive real-time answers from V7 question processing:
+
+  1. Connect to the WebSocket endpoint
+  2. Send your `call_id` as the first message (as JSON or plain text):
+     ```json
+     {"call_id": "call_123"}
+     ```
+  3. Receive connection confirmation
+  4. Receive answers when questions are processed:
+     ```json
+     {
+       "call_id": "call_123",
+       "answer": "The AI-generated answer",
+       "question_text": "The original question"
+     }
+     ```
+
 ### Data Collection
 
 - **POST /tasks** - Store a task
@@ -41,13 +64,26 @@ A FastAPI backend service for managing meeting insights, tasks, and questions th
   }
   ```
 
-- **POST /questions** - Store a question
+- **POST /questions** - Store a question and get AI-generated answer from V7
   ```json
   {
     "call_id": "call_123",
     "question": "What is the timeline for delivery?"
   }
   ```
+
+  **Response:**
+  ```json
+  {
+    "success": true,
+    "id": "69189e8475b8eca678ac8fc5",
+    "message": "Question created successfully",
+    "timestamp": "2025-11-15T14:30:00.000Z",
+    "answer": "The AI-generated answer from V7 (if available)"
+  }
+  ```
+
+  **Note:** This endpoint integrates with V7 to automatically process questions and generate answers. The V7 integration is non-fatal - if V7 is unavailable or not configured, the question will still be stored in MongoDB with `answer: null`.
 
 - **POST /insights** - Store an insight
   ```json
@@ -254,6 +290,13 @@ ELEVENLABS_API_KEY=your_elevenlabs_api_key
 ELEVENLABS_AGENT_ID=your_agent_id
 ELEVENLABS_PHONE_NUMBER_ID=your_phone_number_id
 
+# V7 Configuration (Optional - for question answering)
+V7_WORKSPACE_ID=your_workspace_id
+V7_PROJECT_ID=your_project_id
+V7_API_KEY=your_v7_api_key
+V7_MAX_POLL_TIME=300  # Maximum time to wait for answer (seconds)
+V7_POLL_INTERVAL=2    # Polling interval (seconds)
+
 # Optional
 PORT=8080
 ```
@@ -380,7 +423,8 @@ docker run -p 8080:8080 \
   "_id": ObjectId("..."),
   "call_id": "conv_abc123",
   "question": "What is the pricing structure?",
-  "created_at": "2025-11-15T14:30:00.000Z"
+  "created_at": "2025-11-15T14:30:00.000Z",
+  "answer": "AI-generated answer from V7 (null if not available)"
 }
 ```
 
