@@ -17,7 +17,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-
 class CallRequest(BaseModel):
     phone_number: str
     system_prompt: Optional[str] = ""
