@@ -77,7 +77,6 @@ async def shutdown_db_client():
 class CallRequest(BaseModel):
     phone_number: str
     system_prompt: Optional[str] = ""
-    first_message: Optional[str] = ""
     call_id: Optional[str] = None
 
 
@@ -262,7 +261,6 @@ async def make_call(request: CallRequest):
         result = call_elevenlabs(
             phone_number=request.phone_number,
             system_prompt=request.system_prompt,
-            first_message=request.first_message,
             call_id=request.call_id
         )
         
