@@ -101,10 +101,10 @@ Start a new document to capture notes
 3 awaiting
 Fergus McKenzie-Wilson
 Organiser
-davidgelberg@gmail.com
+David
 Charlie Cheesman
-cronadev@gmail.com
-FlorisFok5@gmail.com
+Ashe
+Floris
 10 minutes before
 Fergus McKenzie-Wilson"""
 
