@@ -10,55 +10,57 @@ from datetime import datetime
 def call_elevenlabs(
     phone_number: str,
     system_prompt: str = "",
-    first_message: str = "",
     call_id: str = None
 ) -> Dict[str, Any]:
     """
     Make an outbound phone call using ElevenLabs ConvAI API.
-    
+
     Args:
         phone_number: The phone number to call (international format, e.g., 447874943523)
-        system_prompt: Optional system prompt/instructions for the ElevenLabs agent
-        first_message: Optional first message the agent will say when the call connects
+        system_prompt: Meeting details to include in the system prompt (meeting_id, passcode, etc)
         call_id: Optional call ID to include in the system prompt
-        
+
     Returns:
         Dictionary containing call result information
     """
     try:
         # ElevenLabs ConvAI outbound call endpoint
         endpoint_url = "https://api.elevenlabs.io/v1/convai/twilio/outbound-call"
-        
+
         # Prepare payload for ElevenLabs API
         payload = {
             "agent_id": os.getenv("ELEVENLABS_AGENT_ID"),
             "agent_phone_number_id": os.getenv("ELEVENLABS_PHONE_NUMBER_ID"),
             "to_number": phone_number
         }
-        
+
+        # Build the system prompt with meeting join instructions
+        meeting_join_prompt = """You are joining a meeting. You are speaking with the google-meet phone robot until you have joined the meeting.
+use your play keypad touch tool to join the call. Keep entering the code until you are let into the meeting. Wait for 20 seconds after calling the tool before responding. First enter the meeting ID as instructed (if present). then when prompted to do so enter the passcode.
+{meeting_details}
+Use individual tool calls for each character. Each dtmf tool call should only have one character. use many tool calls to input."""
+
+        # Replace meeting_details placeholder with actual meeting details
+        if system_prompt:
+            meeting_join_prompt = meeting_join_prompt.replace("{meeting_details}", system_prompt)
+        else:
+            meeting_join_prompt = meeting_join_prompt.replace("{meeting_details}", "")
+
         # Add call_id to system prompt if provided
         if call_id:
-            if system_prompt:
-                system_prompt = f"{system_prompt}\n\nCALL ID: {call_id}"
-            else:
-                system_prompt = f"CALL ID: {call_id}"
-        
-        # Add optional parameters using conversation_config_override structure
-        if system_prompt or first_message:
-            payload["conversation_initiation_client_data"] = {
-                "conversation_config_override": {
-                    "agent": {}
+            meeting_join_prompt = f"{meeting_join_prompt}\n\nCALL ID: {call_id}"
+
+        # Always override the system prompt with meeting join instructions
+        payload["conversation_initiation_client_data"] = {
+            "conversation_config_override": {
+                "agent": {
+                    "prompt": {
+                        "prompt": meeting_join_prompt
+                    }
                 }
             }
-            
-            if system_prompt:
-                payload["conversation_initiation_client_data"]["conversation_config_override"]["agent"]["prompt"] = {
-                    "prompt": system_prompt
-                }
-            
-            if first_message:
-                payload["conversation_initiation_client_data"]["conversation_config_override"]["agent"]["first_message"] = first_message
-        
+        }
+
         # Set required headers
         headers = {
             "Xi-Api-Key": os.getenv("ELEVENLABS_API_KEY"),

@@ -211,6 +211,5 @@ node_modules/
 .vscode-test
 
 # Project specific
-*_test.py
 temp/
 tmp/ 
