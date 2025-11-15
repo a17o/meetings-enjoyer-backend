@@ -1,0 +1,7 @@
+arcadepy
+python-dotenv
+pytz
+requests
+google-cloud-logging
+python-json-logger
+

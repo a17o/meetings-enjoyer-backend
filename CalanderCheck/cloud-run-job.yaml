@@ -1,0 +1,39 @@
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: calendar-check-large
+  annotations:
+    run.googleapis.com/launch-stage: GA
+  labels:
+    app: calendar-check
+    component: calendar-monitoring
+spec:
+  # The outer 'template' is for revision management
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/description: "Checks Google Calendar and triggers meetings backend"
+    # The inner 'template' is where the Job/Task specifications live
+    spec: 
+      template:
+        spec:
+          containers:
+            - image: europe-west1-docker.pkg.dev/community-mafia/cloud-run-source-deploy/calendar-check:latest
+              env:
+                - name: ARCADE_API_KEY
+                  value: arc_o1XsVTQ4EgPwfH3kZYc5kXnETUVWMzQVjhEzFhUYL7WhaE4Fk8ZA
+                - name: SERVICE_NAME
+                  value: calendar-check
+                - name: ENVIRONMENT
+                  value: production
+                - name: LOG_LEVEL
+                  value: INFO
+                - name: ENABLE_JSON_LOGS
+                  value: "true"
+                - name: ENABLE_CLOUD_LOGGING_CLIENT
+                  value: "true"
+                - name: BACKEND_BASE_URL
+                  value: https://enabling-chamois-unique.ngrok-free.app
+              resources:
+                limits:
+                  memory: 4Gi
