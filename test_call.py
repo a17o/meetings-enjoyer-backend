@@ -94,18 +94,27 @@ def test_call_with_parsing(meeting_blurb: str):
 
 if __name__ == "__main__":
     # Default meeting blurb for testing
-    DEFAULT_MEETING_BLURB = """Join Zoom Meeting
-https://prosus.zoom.us/j/94304014125?pwd=YBQlFRAFGYJfVOOBTAF7lwAevaaukK.1
+    DEFAULT_MEETING_BLURB = """Hackathon Catch up
+Saturday, 15 November⋅9:00 – 10:00pm
 
-Meeting ID:  943 0401 4125
-Passcode: 810119
-
-Dial by your location
-• +44 203 956 3891 United Kingdom
-• +44 208 080 6592 United Kingdom
-
-Meeting ID:  943 0401 4125
-Passcode: 810119"""
+Join with Google Meet
+meet.google.com/qqx-rxwi-rby
+Join by phone
+(GB) +44 20 3956 3891 PIN: 485 709 205#
+More phone numbers
+Take meeting notes
+Start a new document to capture notes
+5 guests
+2 yes
+3 awaiting
+Fergus McKenzie-Wilson
+Organiser
+davidgelberg@gmail.com
+Charlie Cheesman
+cronadev@gmail.com
+FlorisFok5@gmail.com
+10 minutes before
+Fergus McKenzie-Wilson"""
 
     if len(sys.argv) > 1:
         # Check if first argument is a file path
