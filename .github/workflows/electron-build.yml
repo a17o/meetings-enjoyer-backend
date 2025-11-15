@@ -15,11 +15,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: macos-latest
 
     steps:
       - name: Checkout code
@@ -40,34 +36,16 @@ jobs:
         working-directory: apps/electron
         run: npm run build
 
-      - name: Upload artifacts (macOS)
-        if: matrix.os == 'macos-latest'
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: lara-console-mac-arm64
+          name: lara-console-mac
           path: apps/electron/dist/*.dmg
-
-      - name: Upload artifacts (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: lara-console-windows
-          path: apps/electron/dist/*.exe
-
-      - name: Upload artifacts (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: lara-console-linux
-          path: apps/electron/dist/*.AppImage
 
       - name: Upload to release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            apps/electron/dist/*.dmg
-            apps/electron/dist/*.exe
-            apps/electron/dist/*.AppImage
+          files: apps/electron/dist/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
