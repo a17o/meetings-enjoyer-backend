@@ -41,6 +41,30 @@ async def startup_db_client():
     db = mongodb_client.vikings
     logger.info("Connected to MongoDB database: vikings")
 
+    # Check V7 API configuration
+    v7_workspace_id = os.getenv("V7_WORKSPACE_ID")
+    v7_project_id = os.getenv("V7_PROJECT_ID")
+    v7_api_key = os.getenv("V7_API_KEY")
+
+    if v7_workspace_id and v7_project_id and v7_api_key:
+        logger.info("V7 integration is configured")
+        try:
+            # Test V7 API connection
+            test_url = f"https://go.v7labs.com/api/workspaces/{v7_workspace_id}/projects/{v7_project_id}"
+            headers = {"X-API-KEY": v7_api_key}
+            response = requests.get(test_url, headers=headers, timeout=5)
+
+            if response.status_code == 200:
+                logger.info("✓ V7 API connection successful")
+            else:
+                logger.warning(f"V7 API returned status {response.status_code}")
+        except requests.exceptions.Timeout:
+            logger.warning("V7 API connection timeout")
+        except Exception as e:
+            logger.warning(f"V7 API connection failed: {str(e)}")
+    else:
+        logger.info("V7 integration not configured (optional feature)")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     """Close MongoDB connection on shutdown"""
@@ -153,15 +177,55 @@ async def health_check():
     env_status = {
         "ELEVENLABS_API_KEY": bool(os.getenv("ELEVENLABS_API_KEY")),
         "ELEVENLABS_AGENT_ID": bool(os.getenv("ELEVENLABS_AGENT_ID")),
-        "ELEVENLABS_PHONE_NUMBER_ID": bool(os.getenv("ELEVENLABS_PHONE_NUMBER_ID"))
+        "ELEVENLABS_PHONE_NUMBER_ID": bool(os.getenv("ELEVENLABS_PHONE_NUMBER_ID")),
+        "V7_WORKSPACE_ID": bool(os.getenv("V7_WORKSPACE_ID")),
+        "V7_PROJECT_ID": bool(os.getenv("V7_PROJECT_ID")),
+        "V7_API_KEY": bool(os.getenv("V7_API_KEY"))
     }
-    
-    all_configured = all(env_status.values())
-    
+
+    # ElevenLabs is required, V7 is optional
+    elevenlabs_configured = all([
+        env_status["ELEVENLABS_API_KEY"],
+        env_status["ELEVENLABS_AGENT_ID"],
+        env_status["ELEVENLABS_PHONE_NUMBER_ID"]
+    ])
+
+    v7_configured = all([
+        env_status["V7_WORKSPACE_ID"],
+        env_status["V7_PROJECT_ID"],
+        env_status["V7_API_KEY"]
+    ])
+
+    # Test V7 API connection if configured
+    v7_status = "not_configured"
+    if v7_configured:
+        try:
+            workspace_id = os.getenv('V7_WORKSPACE_ID')
+            project_id = os.getenv('V7_PROJECT_ID')
+            api_key = os.getenv('V7_API_KEY')
+
+            # Test API connection with a simple GET request
+            test_url = f"https://go.v7labs.com/api/workspaces/{workspace_id}/projects/{project_id}"
+            headers = {"X-API-KEY": api_key}
+            response = requests.get(test_url, headers=headers, timeout=5)
+
+            if response.status_code == 200:
+                v7_status = "connected"
+            else:
+                v7_status = f"error_{response.status_code}"
+        except requests.exceptions.Timeout:
+            v7_status = "timeout"
+        except Exception as e:
+            v7_status = f"error: {str(e)[:50]}"
+
     return {
-        "status": "healthy" if all_configured else "partial",
+        "status": "healthy" if elevenlabs_configured else "partial",
         "environment": env_status,
-        "ready": all_configured,
+        "ready": elevenlabs_configured,
+        "v7_integration": {
+            "configured": v7_configured,
+            "status": v7_status
+        },
         "timestamp": datetime.now().isoformat()
     }
 
