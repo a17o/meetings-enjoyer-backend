@@ -1,8 +1,0 @@
-requests
-python-dotenv
-pydantic
-fastapi
-uvicorn
-elevenlabs
-motor
-pymongo
