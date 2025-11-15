@@ -4,23 +4,25 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies and uv
+# Install system dependencies required for Python packages
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && curl -LsSf https://astral.sh/uv/install.sh | sh
+    && rm -rf /var/lib/apt/lists/*
 
-# Add uv to PATH
-ENV PATH="/root/.cargo/bin:$PATH"
+# Install uv package manager
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Add uv to PATH (uv installs to ~/.local/bin by default)
+ENV PATH="/root/.local/bin:$PATH"
 
 # Copy dependency files first for better caching
-COPY pyproject.toml .
-COPY .python-version .
+COPY pyproject.toml uv.lock README.md ./
 
-# Install Python dependencies using uv
-RUN uv sync --frozen --no-dev
+# Install Python dependencies using uv (with system python)
+# The ENV PATH is now available for this RUN command
+RUN uv sync --frozen --no-dev --python $(which python)
 
 # Copy application code
 COPY . .
