@@ -18,7 +18,6 @@ export function AnswerCard({ answer, onDismiss, onCancel, isSpeaking }: AnswerCa
   }
 
   const isStale = answer.status === 'stale'
-  const isReady = answer.status === 'ready'
 
   return (
     <div className="glass rounded-lg p-4 space-y-3">

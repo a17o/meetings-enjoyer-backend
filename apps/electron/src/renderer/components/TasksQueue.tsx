@@ -6,7 +6,7 @@ interface TasksQueueProps {
   wsClient: WSClient | null
 }
 
-export function TasksQueue({ wsClient }: TasksQueueProps) {
+export function TasksQueue({ wsClient: _wsClient }: TasksQueueProps) {
   const tasks = useStore((s) => s.tasks)
   const answers = useStore((s) => {
     const allAnswers = s.current ? [s.current, ...s.queue, ...s.history] : [...s.queue, ...s.history]

@@ -37,7 +37,7 @@ async def process_meeting_blurb(meeting_blurb: str, call_id: str):
         logger.info(f"Processing meeting blurb for call_id: {call_id}")
         
         # Parse meeting info
-        logger.info(f"Parsing meeting info with Gemini...")
+        logger.info("Parsing meeting info with Gemini...")
         parse_result = await asyncio.to_thread(parse_meeting_info, meeting_blurb)
         
         if not parse_result.get("success"):
