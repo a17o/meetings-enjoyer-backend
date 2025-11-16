@@ -55,7 +55,7 @@ export function SettingsModal() {
               type="text"
               value={formData.backendUrl}
               onChange={(e) => setFormData({ ...formData, backendUrl: e.target.value })}
-              placeholder="ws://localhost:9001"
+              placeholder="wss://meeting-enjoyer-backend-534113739138.europe-west2.run.app/ws"
               className="input w-full"
             />
           </div>
