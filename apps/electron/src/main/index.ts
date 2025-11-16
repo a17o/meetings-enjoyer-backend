@@ -93,8 +93,8 @@ async function createWindow(): Promise<void> {
     // Open devtools in development
     mainWindow.webContents.openDevTools({ mode: 'detach' })
   } else {
-    // In production, index.html is at the root of the asar (one level up from dist-electron)
-    mainWindow.loadFile(path.join(__dirname, '../index.html'))
+    // In production, index.html is in the dist folder in the asar
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
 
   // Register global hotkey: Alt/Cmd+Space to toggle collapse

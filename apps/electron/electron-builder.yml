@@ -1,9 +1,13 @@
 appId: com.lara.console
 productName: Lara Console
 directories:
-  output: dist
+  output: dist-output
   buildResources: build
 files:
+  - 'dist/**/*'
+  - 'dist-electron/**/*'
+  - 'node_modules/**/*'
+  - 'package.json'
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
