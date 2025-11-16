@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 import os
 from datetime import datetime
 import logging
@@ -21,8 +21,8 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Store websocket connections by call_id
-websocket_connections: Dict[str, WebSocket] = {}
+# Store all active websocket connections
+websocket_connections: List[WebSocket] = []
 
 
 async def process_meeting_blurb(meeting_blurb: str, call_id: str):
@@ -175,7 +175,7 @@ async def root():
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     call_id = None
-    
+
     try:
         # Wait for call_id as the first message
         data = await websocket.receive_text()
@@ -185,18 +185,18 @@ async def websocket_endpoint(websocket: WebSocket):
         except json.JSONDecodeError:
             # If not JSON, treat the whole message as call_id
             call_id = data.strip()
-        
+
         if not call_id:
             await websocket.send_text(json.dumps({"error": "call_id is required"}))
             await websocket.close()
             return
-        
-        # Store the websocket connection with this call_id
-        websocket_connections[call_id] = websocket
-        logger.info(f"WebSocket connected for call_id: {call_id}")
-        
+
+        # Add this websocket connection to the list of all connections
+        websocket_connections.append(websocket)
+        logger.info(f"WebSocket connected for call_id: {call_id}. Total connections: {len(websocket_connections)}")
+
         await websocket.send_text(json.dumps({"status": "connected", "call_id": call_id}))
-        
+
         # Keep connection alive and listen for messages
         while True:
             try:
@@ -213,7 +213,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         # Handle join_call command - fire and forget
                         meeting_info = message.get("meeting", {})
                         raw_invite = meeting_info.get("rawInvite")
-                        
+
                         if raw_invite:
                             logger.info(f"Received join_call command with rawInvite for call_id: {call_id}")
                             # Start background task to process meeting blurb and make call
@@ -226,16 +226,16 @@ async def websocket_endpoint(websocket: WebSocket):
                     await websocket.send_text(json.dumps({"echo": data}))
             except WebSocketDisconnect:
                 break
-                
+
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for call_id: {call_id}")
     except Exception as e:
         logger.error(f"WebSocket error: {str(e)}")
     finally:
         # Clean up the connection
-        if call_id and call_id in websocket_connections:
-            del websocket_connections[call_id]
-            logger.info(f"Removed websocket connection for call_id: {call_id}")
+        if websocket in websocket_connections:
+            websocket_connections.remove(websocket)
+            logger.info(f"Removed websocket connection for call_id: {call_id}. Remaining connections: {len(websocket_connections)}")
 
 
 @app.get("/health")
@@ -387,12 +387,46 @@ async def create_task(request: TaskRequest):
 
         # Insert into MongoDB
         result = await db.tasks.insert_one(task_document)
+        task_id = result.inserted_id
 
-        logger.info(f"Task created with id: {result.inserted_id}")
+        logger.info(f"Task created with id: {task_id}")
+
+        # Broadcast task to all connected websockets
+        if websocket_connections:
+            task_message = {
+                "type": "task_proposed",
+                "taskId": f"task_{task_id}",
+                "ts": int(time.time() * 1000),  # milliseconds timestamp
+                "summary": request.task,
+                "payload": {
+                    "task_id": str(task_id),
+                    "call_id": request.call_id,
+                    "task": request.task
+                }
+            }
+            message_json = json.dumps(task_message)
+            logger.info(f"Broadcasting task_proposed message to {len(websocket_connections)} websocket(s)")
+
+            # Send to all connected clients (use copy to avoid modification during iteration)
+            disconnected_sockets = []
+            for websocket in websocket_connections[:]:
+                try:
+                    await websocket.send_text(message_json)
+                except Exception as e:
+                    logger.error(f"Failed to send task to websocket: {str(e)}", exc_info=True)
+                    disconnected_sockets.append(websocket)
+
+            # Clean up any disconnected sockets
+            for ws in disconnected_sockets:
+                if ws in websocket_connections:
+                    websocket_connections.remove(ws)
+                    logger.info(f"Removed disconnected websocket. Remaining connections: {len(websocket_connections)}")
+        else:
+            logger.warning(f"No websocket connections available to send task")
 
         return DataResponse(
             success=True,
-            id=str(result.inserted_id),
+            id=str(task_id),
             message="Task created successfully",
             timestamp=datetime.now().isoformat()
         )
@@ -433,31 +467,39 @@ async def create_question(request: QuestionRequest):
 
         logger.info(f"Question created with id: {question_id}")
 
-        # Send question to websocket if connected
-        if request.call_id in websocket_connections:
-            try:
-                websocket = websocket_connections[request.call_id]
-                # Send question as a task_proposed event so it appears in the UI
-                task_id = f"task_{question_id}"
-                task_message = {
-                    "type": "task_proposed",
-                    "taskId": task_id,
-                    "ts": int(time.time() * 1000),  # milliseconds timestamp
-                    "summary": request.question,
-                    "payload": {
-                        "question_id": str(question_id),
-                        "call_id": request.call_id,
-                        "question": request.question
-                    }
+        # Broadcast question to all connected websockets
+        if websocket_connections:
+            task_id = f"task_{question_id}"
+            task_message = {
+                "type": "task_proposed",
+                "taskId": task_id,
+                "ts": int(time.time() * 1000),  # milliseconds timestamp
+                "summary": request.question,
+                "payload": {
+                    "question_id": str(question_id),
+                    "call_id": request.call_id,
+                    "question": request.question
                 }
-                message_json = json.dumps(task_message)
-                logger.info(f"Sending task_proposed message to websocket for call_id: {request.call_id}, message: {message_json}")
-                await websocket.send_text(message_json)
-                logger.info(f"Successfully sent question as task to websocket for call_id: {request.call_id}")
-            except Exception as e:
-                logger.error(f"Failed to send question to websocket: {str(e)}", exc_info=True)
+            }
+            message_json = json.dumps(task_message)
+            logger.info(f"Broadcasting task_proposed message to {len(websocket_connections)} websocket(s)")
+
+            # Send to all connected clients (use copy to avoid modification during iteration)
+            disconnected_sockets = []
+            for websocket in websocket_connections[:]:
+                try:
+                    await websocket.send_text(message_json)
+                except Exception as e:
+                    logger.error(f"Failed to send question to websocket: {str(e)}", exc_info=True)
+                    disconnected_sockets.append(websocket)
+
+            # Clean up any disconnected sockets
+            for ws in disconnected_sockets:
+                if ws in websocket_connections:
+                    websocket_connections.remove(ws)
+                    logger.info(f"Removed disconnected websocket. Remaining connections: {len(websocket_connections)}")
         else:
-            logger.warning(f"No websocket connection found for call_id: {request.call_id}. Available connections: {list(websocket_connections.keys())}")
+            logger.warning(f"No websocket connections available to send question")
 
         # Send to V7 for processing
         v7_answer = None
@@ -543,27 +585,37 @@ async def create_question(request: QuestionRequest):
                                 )
                                 logger.info(f"Updated question {question_id} with V7 answer")
 
-                                # Send to websocket if connected
-                                if request.call_id in websocket_connections:
-                                    try:
-                                        websocket = websocket_connections[request.call_id]
-                                        # Send in answer_ready format expected by electron app
-                                        answer_id = f"ans_{question_id}"
-                                        command_id = f"cmd_{question_id}"
-                                        task_id = f"task_{question_id}"  # Link to the task
-                                        await websocket.send_text(json.dumps({
-                                            "type": "answer_ready",
-                                            "answerId": answer_id,
-                                            "commandId": command_id,
-                                            "ts": int(time.time() * 1000),  # milliseconds timestamp
-                                            "text": v7_answer,
-                                            "question_text": request.question,  # Keep for reference
-                                            "question_id": str(question_id),
-                                            "taskId": task_id  # Link answer to task
-                                        }))
-                                        logger.info(f"Sent answer to websocket for call_id: {request.call_id}, linked to task: {task_id}")
-                                    except Exception as e:
-                                        logger.error(f"Failed to send answer to websocket: {str(e)}")
+                                # Broadcast answer to all connected websockets
+                                if websocket_connections:
+                                    answer_id = f"ans_{question_id}"
+                                    command_id = f"cmd_{question_id}"
+                                    task_id = f"task_{question_id}"  # Link to the task
+                                    answer_message = {
+                                        "type": "answer_ready",
+                                        "answerId": answer_id,
+                                        "commandId": command_id,
+                                        "ts": int(time.time() * 1000),  # milliseconds timestamp
+                                        "text": v7_answer,
+                                        "question_text": request.question,  # Keep for reference
+                                        "question_id": str(question_id),
+                                        "taskId": task_id  # Link answer to task
+                                    }
+                                    answer_json = json.dumps(answer_message)
+                                    logger.info(f"Broadcasting answer_ready message to {len(websocket_connections)} websocket(s)")
+
+                                    disconnected_sockets = []
+                                    for websocket in websocket_connections[:]:
+                                        try:
+                                            await websocket.send_text(answer_json)
+                                        except Exception as e:
+                                            logger.error(f"Failed to send answer to websocket: {str(e)}")
+                                            disconnected_sockets.append(websocket)
+
+                                    # Clean up any disconnected sockets
+                                    for ws in disconnected_sockets:
+                                        if ws in websocket_connections:
+                                            websocket_connections.remove(ws)
+                                            logger.info(f"Removed disconnected websocket. Remaining connections: {len(websocket_connections)}")
 
                             break
 
@@ -624,23 +676,36 @@ async def create_insight(request: InsightRequest):
 
         logger.info(f"Insight created with id: {insight_id}")
 
-        # Send insight to websocket if connected (as transcript message)
-        if request.call_id in websocket_connections:
-            try:
-                websocket = websocket_connections[request.call_id]
-                # Send insight as a transcript message so it appears in the transcript window
-                await websocket.send_text(json.dumps({
-                    "type": "transcript",
-                    "id": f"insight_{insight_id}",
-                    "ts": int(time.time() * 1000),  # milliseconds timestamp
-                    "text": request.insight,
-                    "partial": False,
-                    "speaker": "Insight",  # Label as insight so it's distinguishable
-                    "wake": False
-                }))
-                logger.info(f"Sent insight to websocket for call_id: {request.call_id}")
-            except Exception as e:
-                logger.error(f"Failed to send insight to websocket: {str(e)}")
+        # Broadcast insight to all connected websockets (as transcript message)
+        if websocket_connections:
+            insight_message = {
+                "type": "transcript",
+                "id": f"insight_{insight_id}",
+                "ts": int(time.time() * 1000),  # milliseconds timestamp
+                "text": request.insight,
+                "partial": False,
+                "speaker": "Insight",  # Label as insight so it's distinguishable
+                "wake": False
+            }
+            message_json = json.dumps(insight_message)
+            logger.info(f"Broadcasting insight transcript to {len(websocket_connections)} websocket(s)")
+
+            # Send to all connected clients (use copy to avoid modification during iteration)
+            disconnected_sockets = []
+            for websocket in websocket_connections[:]:
+                try:
+                    await websocket.send_text(message_json)
+                except Exception as e:
+                    logger.error(f"Failed to send insight to websocket: {str(e)}", exc_info=True)
+                    disconnected_sockets.append(websocket)
+
+            # Clean up any disconnected sockets
+            for ws in disconnected_sockets:
+                if ws in websocket_connections:
+                    websocket_connections.remove(ws)
+                    logger.info(f"Removed disconnected websocket. Remaining connections: {len(websocket_connections)}")
+        else:
+            logger.warning(f"No websocket connections available to send insight")
 
         return DataResponse(
             success=True,
