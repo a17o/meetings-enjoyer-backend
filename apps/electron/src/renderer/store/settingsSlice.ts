@@ -8,7 +8,7 @@ export interface SettingsSlice {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
-  backendUrl: 'ws://localhost:8080/ws',  // Default to API websocket endpoint
+  backendUrl: 'wss://meeting-enjoyer-backend-534113739138.europe-west2.run.app/ws',  // Default to production API websocket endpoint
   authToken: '',
   agentName: 'Lara',
   wakePhrase: 'hey lara',

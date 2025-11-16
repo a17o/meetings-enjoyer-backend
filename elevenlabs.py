@@ -34,6 +34,9 @@ def call_elevenlabs(
             "to_number": phone_number
         }
 
+        dynamic_variables = {
+            "call_id": call_id if call_id else ""
+        }
         # Build the system prompt with meeting join instructions
         meeting_join_prompt = """You are joining a meeting. You are speaking with the google-meet phone robot until you have joined the meeting.
 use your play keypad touch tool to join the call. Keep entering the code until you are let into the meeting. Wait for 20 seconds after calling the tool before responding. First enter the meeting ID as instructed (if present). then when prompted to do so enter the passcode.
@@ -57,7 +60,8 @@ Use individual tool calls for each character. Each dtmf tool call should only ha
                     "prompt": {
                         "prompt": meeting_join_prompt
                     }
-                }
+                },
+                "dynamic_variables": dynamic_variables
             }
         }
 

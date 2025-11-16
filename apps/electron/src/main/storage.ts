@@ -47,7 +47,7 @@ export async function loadConfig(): Promise<StoredConfig> {
   } catch (error) {
     // Return defaults if file doesn't exist
     return {
-      backendUrl: 'ws://localhost:8080/ws',
+      backendUrl: 'wss://meeting-enjoyer-backend-534113739138.europe-west2.run.app/ws',
       authToken: '',
       agentName: 'Lara',
       wakePhrase: 'hey lara',
