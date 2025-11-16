@@ -10,13 +10,18 @@ An always-on-top overlay console for macOS that provides real-time meeting trans
 
 1. Download the latest `Lara Console-X.X.X-arm64.dmg` from the [Releases](https://github.com/a17o/meetings-enjoyer-backend/releases) page or GitHub Actions artifacts
 
-2. **Important:** Remove the quarantine attribute:
+2. Open the DMG (double-click it)
+
+3. **Important:** Remove the quarantine attribute from the installer:
    ```bash
-   xattr -cr ~/Downloads/Lara\ Console-*.dmg
+   xattr -cr "/Volumes/Lara Console"*"/Install.command"
+   ```
+   Or remove from everything in the DMG:
+   ```bash
+   xattr -cr "/Volumes/Lara Console"*
    ```
 
-3. Open the DMG and **double-click `Install.command`**
-   - If macOS blocks it, right-click → "Open" → "Open" to bypass the warning
+4. **Double-click `Install.command`**
    - The installer will automatically copy the app to Applications and offer to launch it
 
 **Manual Installation**
