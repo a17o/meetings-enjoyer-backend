@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-USER_ID = "florisfok5@gmail.com"
+USER_ID = os.environ.get("USER_ID") # equal to the user id in the calendar
 TOOL_NAME = "GoogleCalendar.ListEvents"
 
 def call_backend(description):
