@@ -8,9 +8,11 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import requests
 import time
 import json
+import asyncio
 from dotenv import load_dotenv
 
 from elevenlabs import call_elevenlabs
+from parse_meeting_info import parse_meeting_info
 
 # Load environment variables from .env file
 load_dotenv()
@@ -21,6 +23,51 @@ logger = logging.getLogger(__name__)
 
 # Store websocket connections by call_id
 websocket_connections: Dict[str, WebSocket] = {}
+
+
+async def process_meeting_blurb(meeting_blurb: str, call_id: str):
+    """
+    Fire and forget function to parse meeting info and make ElevenLabs call.
+    
+    Args:
+        meeting_blurb: Raw meeting information text
+        call_id: Call ID for the call
+    """
+    try:
+        logger.info(f"Processing meeting blurb for call_id: {call_id}")
+        
+        # Parse meeting info
+        logger.info(f"Parsing meeting info with Gemini...")
+        parse_result = await asyncio.to_thread(parse_meeting_info, meeting_blurb)
+        
+        if not parse_result.get("success"):
+            logger.error(f"Failed to parse meeting info for call_id {call_id}: {parse_result.get('error')}")
+            return
+        
+        phone_number = parse_result.get("phone_number")
+        meeting_credentials = parse_result.get("meeting_credentials")
+        
+        if not phone_number:
+            logger.error(f"No phone number extracted from meeting blurb for call_id {call_id}")
+            return
+        
+        logger.info(f"Successfully parsed meeting info for call_id {call_id}")
+        logger.info(f"Phone Number: {phone_number}")
+        logger.info(f"Meeting Credentials: {meeting_credentials}")
+        
+        # Make the ElevenLabs call (fire and forget)
+        logger.info(f"Initiating ElevenLabs call for call_id {call_id}...")
+        result = await asyncio.to_thread(call_elevenlabs, phone_number, meeting_credentials, call_id)
+        
+        if result.get("success"):
+            logger.info(f"Call initiated successfully for call_id {call_id}")
+            logger.info(f"ElevenLabs Call ID: {result.get('call_id')}")
+            logger.info(f"Conversation ID: {result.get('conversation_id')}")
+        else:
+            logger.error(f"Call failed for call_id {call_id}: {result.get('error')}")
+            
+    except Exception as e:
+        logger.error(f"Exception processing meeting blurb for call_id {call_id}: {str(e)}", exc_info=True)
 
 app = FastAPI(
     title="Meeting Enjoyer API",
@@ -162,6 +209,17 @@ async def websocket_endpoint(websocket: WebSocket):
                             "ts": message.get("ts"),
                             "serverTs": int(time.time() * 1000)
                         }))
+                    elif message.get("type") == "join_call":
+                        # Handle join_call command - fire and forget
+                        meeting_info = message.get("meeting", {})
+                        raw_invite = meeting_info.get("rawInvite")
+                        
+                        if raw_invite:
+                            logger.info(f"Received join_call command with rawInvite for call_id: {call_id}")
+                            # Start background task to process meeting blurb and make call
+                            asyncio.create_task(process_meeting_blurb(raw_invite, call_id))
+                        else:
+                            logger.warning(f"Received join_call command without rawInvite for call_id: {call_id}")
                     else:
                         await websocket.send_text(json.dumps({"echo": data}))
                 except json.JSONDecodeError:
