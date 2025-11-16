@@ -40,12 +40,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lara-console-mac
-          path: apps/electron/dist/*.dmg
+          path: apps/electron/dist-output/*.dmg
 
       - name: Upload to release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: apps/electron/dist/*.dmg
+          files: apps/electron/dist-output/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
