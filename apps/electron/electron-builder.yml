@@ -30,6 +30,10 @@ dmg:
     - x: 130
       'y': 150
       type: file
+    - x: 270
+      'y': 150
+      type: file
+      path: Install.command
 
 win:
   target:
